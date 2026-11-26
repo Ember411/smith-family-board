@@ -91,6 +91,7 @@ h1,h2,h3,.clock,.dnum{font-family:Fredoka,system-ui,sans-serif;font-weight:600;m
 .pin{position:absolute;inset:0}
 .ytdock{position:absolute;inset:0;background:#000;display:flex;flex-direction:column;z-index:2}.ytdock[hidden]{display:none}
 .ytdock #ytp,.ytdock iframe{flex:1;width:100%;min-height:0;border:0}
+.ytgo{position:absolute;inset:0;margin:auto;width:min(80%,360px);height:88px;border-radius:20px;background:var(--accent);color:#fff;font:600 22px Fredoka,sans-serif;z-index:3;box-shadow:0 10px 30px rgba(0,0,0,.4)}.ytgo[hidden]{display:none}
 .ytbar{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(0,0,0,.85);color:#fff}.ytbar span{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ytbar .btn{background:rgba(255,255,255,.12);color:#fff;border-color:transparent;min-height:40px}
 .lists{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:18px}
@@ -178,7 +179,7 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
  <nav class="people" id="people" aria-label="Family members"></nav>
  <main class="main">
   <section class="board card" id="board"></section>
-  <section class="photo card" id="photo"><div id="pin" class="pin"></div><div id="ytdock" class="ytdock" hidden><div id="ytp"></div><div class="ytbar"><span id="ytnow">Music</span><button class="btn" id="ytstop">Close</button></div></div></section>
+  <section class="photo card" id="photo"><div id="pin" class="pin"></div><div id="ytdock" class="ytdock" hidden><div id="ytp"></div><button id="ytgo" class="ytgo" hidden>▶ Tap to start Sunday Sounds</button><div class="ytbar"><span id="ytnow">Music</span><button class="btn" id="ytstop">Close</button></div></div></section>
  </main>
  <nav class="nav">
   <button class="tab" data-v="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</button>
@@ -442,7 +443,8 @@ const PLAYLISTS=[
  {id:'country',name:'Country',a:'#b5651d',b:'#e0a04a',v:['4zAThXFOy2c','lydBPm2KRaU','awzNHuGqoMc','w2CELiObPeQ','uXyxFMbqKYA','e4ujS1er1r0','hvKyBcCDOB4']},
  {id:'grunge',name:'90s Alternative & Grunge',a:'#2f3a3a',b:'#6b7a5a',v:['hTWKbfoikeg','vabnZ9-ex7o','3mbBbFH9fAg','yjJL9DGU7Gg','CxKWTzr-k6s','eBG7P-K-r1Y','4aeETEoNfOg','kemivUKb4f4','bx1Bh8ZvH84','xwtdhWltSIg','NdYWuo9OFAw','G6Kspj3OO0s']},
  {id:'2000s',name:'2000s Sing-Along',a:'#c2185b',b:'#8e44ad',v:['5NPBIwQyPWE','TIy3n2b7V9k','dGR65RWwzg8','R7UrFYvl5TE','Ra-Om7UMSJc','Cbo2n2MzxxE','Cwkej79U3ek','VuNIsY6JdUw','b7k0a5hYnSI','M11SvDtPBhA']},
- {id:'kids',name:'Kids',a:'#1f9bb5',b:'#2f9a6c',v:['y6Sxv-sUYtM','ru0K8uYEZWw','L0MK7qz13bU','cPAbx5kgCJo','bvWRMAU6V-c','c6rP-YP4c5I','nfWlot6h_JM','CevxZvSJLk8']}];
+ {id:'kids',name:'Kids',a:'#1f9bb5',b:'#2f9a6c',v:['y6Sxv-sUYtM','ru0K8uYEZWw','L0MK7qz13bU','cPAbx5kgCJo','bvWRMAU6V-c','c6rP-YP4c5I','nfWlot6h_JM','CevxZvSJLk8']},
+ {id:'sunday',name:'Sunday Sounds',a:'#5b4a8a',b:'#c9a227',v:['xaxrY1rxZKE','sIaT8Jl2zpI','ya1M0lLW3FE','nQWFzMvCfLE','xglz6kryORQ','dy9nwe9_xzw','CqybaIesbuA','XFRjr_x-yxU','KwX1f2gYKZ4','Sc6SSHuZvQE','n0FBb6hnwTo']}];
 const CUSTOM_COL=[['#3a5a8c','#6f8fc4'],['#7a4b2a','#c4875a'],['#4b2a7a','#9a6fc4'],['#2a6b4b','#5ac48a']];
 const BLOCK=/\b(explicit|uncensored|dirty version|parental advisory)\b/i;
 let yt=null,ytReady=false,ytPending=null,curList=null,ytTitle='',shuffleOn=true,ytVol=70;
@@ -460,6 +462,20 @@ function startList(l){curList=l.id;$('ytdock').hidden=false;
  if(l.list){yt.loadPlaylist({list:l.list,listType:'playlist'});setTimeout(()=>{try{yt.setShuffle(shuffleOn);if(shuffleOn)yt.nextVideo()}catch(e){}},1200)}
  else{let v=l.v.slice();if(shuffleOn)for(let i=v.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[v[i],v[j]]=[v[j],v[i]]}yt.loadPlaylist(v,0)}
  render()}
+/* Sunday Sounds: auto-play 8 AM–7 PM on Sundays, on screens where it's switched on */
+const SUN_START=8*60,SUN_END=19*60;
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+let sunAuto=lsGet('smith-sunday-auto')==='1',sunAutoPlaying=false;
+function sundayTick(){
+ const n=new Date(),m=n.getHours()*60+n.getMinutes(),today=ymd(n);
+ if(sunAutoPlaying&&(n.getDay()!==0||m>=SUN_END)){sunAutoPlaying=false;stopMusic();return}
+ if(!sunAuto||n.getDay()!==0||m<SUN_START||m>=SUN_END)return;
+ if(lsGet('smith-sunday-done')===today||curList)return;
+ const l=allLists().find(x=>x.id==='sunday');if(!l)return;
+ sunAutoPlaying=true;shuffleOn=true;startList(l);
+ setTimeout(()=>{try{if(yt.getPlayerState()!==1)$('ytgo').hidden=false}catch(e){$('ytgo').hidden=false}},6000);
+}
+function stopMusic(){try{yt.stopVideo()}catch(e){}$('ytdock').hidden=true;$('ytgo').hidden=true;curList=null;ytTitle='';sunAutoPlaying=false;if(view==='music')render()}
 function parseYT(u){u=String(u||'').trim();let m;
  const list=(m=u.match(/[?&]list=([A-Za-z0-9_-]{10,64})/))?m[1]:null;
  const vid=(m=u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([A-Za-z0-9_-]{11})/))?m[1]:(/^[A-Za-z0-9_-]{11}$/.test(u)?u:null);
@@ -472,19 +488,22 @@ function musicView(){
  '<button class="btn'+(shuffleOn?' pri':'')+'" id="npShuf" aria-label="Shuffle">🔀</button><input type="range" id="npVol" min="0" max="100" value="'+ytVol+'" aria-label="Volume"></div>'+
  '<div class="lists">'+ls.map(l=>'<button class="pl'+(curList===l.id?' on':'')+'" style="--a:'+l.a+';--b:'+l.b+'" data-pl="'+esc(l.id)+'"><b>'+esc(l.name)+'</b><small>'+(l.list?'YouTube playlist':l.v.length+(l.v.length===1?' song':' songs'))+'</small>'+(l.builtin?'':'<span class="del" role="button" data-pldel="'+esc(l.id)+'" aria-label="Delete playlist">✕</span>')+'</button>').join('')+'</div>'+
  '<h3 class="sub">Add music</h3><form class="row" id="addm" style="margin-top:0"><input type="text" id="amUrl" placeholder="Paste a YouTube song or playlist link" required><select id="amTo">'+ls.filter(l=>!l.list).map(l=>'<option value="'+esc(l.id)+'">Add to '+esc(l.name)+'</option>').join('')+'<option value="__new">New playlist…</option></select><input type="text" id="amName" placeholder="New playlist name" hidden><button class="btn pri">Add</button></form>'+
- '<p class="hint" id="amHint">Songs play on this screen, in the photo spot. Anything labeled explicit gets skipped.</p></div>';
+ '<p class="hint" id="amHint">Songs play on this screen, in the photo spot. Anything labeled explicit gets skipped.</p>'+
+ '<h3 class="sub" style="margin-top:20px">Sunday Sounds schedule</h3><label class="ch" style="font-size:16px"><input type="checkbox" id="sunAuto"'+(sunAuto?' checked':'')+'> Play Sunday Sounds on this screen every Sunday, 8 AM to 7 PM</label>'+
+ '<p class="hint">Turn this on just on the TV. Tapping Close on Sunday stops it for the rest of the day.</p></div>';
 }
 function wireMusic(){
  if(!yt)loadYT();
  const ls=allLists();
  $('board').querySelectorAll('[data-pl]').forEach(b=>b.onclick=e=>{const d=e.target.closest('[data-pldel]');
   if(d){S.music.custom=(S.music.custom||[]).filter(c=>c.id!==d.dataset.pldel);if(curList===d.dataset.pldel)curList=null;save();render();return}
-  const l=ls.find(x=>x.id===b.dataset.pl);if(l)startList(l)});
+  const l=ls.find(x=>x.id===b.dataset.pl);if(l){sunAutoPlaying=false;startList(l)}});
  $('npPlay').onclick=()=>{if(!yt||!ytReady){const l=ls[0];if(l)startList(l);return}if(!curList){startList(ls[0]);return}yt.getPlayerState()===1?yt.pauseVideo():yt.playVideo()};
  $('npNext').onclick=()=>{try{yt.nextVideo()}catch(e){}};
  $('npPrev').onclick=()=>{try{yt.previousVideo()}catch(e){}};
  $('npShuf').onclick=()=>{shuffleOn=!shuffleOn;try{yt.setShuffle(shuffleOn)}catch(e){}render()};
  $('npVol').oninput=e=>{ytVol=+e.target.value;try{yt.setVolume(ytVol)}catch(x){}};
+ $('sunAuto').onchange=e=>{sunAuto=e.target.checked;lsSet('smith-sunday-auto',sunAuto?'1':null);if(sunAuto){lsSet('smith-sunday-done',null);sundayTick()}};
  $('amTo').onchange=e=>{$('amName').hidden=e.target.value!=='__new'};
  $('addm').onsubmit=e=>{e.preventDefault();const {list,vid}=parseYT($('amUrl').value);const h=$('amHint');
   S.music=S.music||{};S.music.extra=S.music.extra||{};S.music.custom=S.music.custom||[];
@@ -588,7 +607,9 @@ $('board').addEventListener('change',e=>{
 });
 $('board').addEventListener('submit',e=>{if(e.target.id!=='cf')return;e.preventDefault();
  S.chores.push({id:uid(),text:$('ct').value.trim(),who:$('cw').value,done:false});save();render()});
-$('ytstop').onclick=()=>{try{yt.stopVideo()}catch(e){}$('ytdock').hidden=true;curList=null;ytTitle='';if(view==='music')render()};
+$('ytstop').onclick=()=>{if(new Date().getDay()===0)lsSet('smith-sunday-done',ymd(new Date()));stopMusic()};
+$('ytgo').onclick=()=>{$('ytgo').hidden=true;try{yt.playVideo()}catch(e){}};
+setInterval(sundayTick,30000);setTimeout(sundayTick,4000);
 $('fs').onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}};
 
 /* photos: kept on this device */
