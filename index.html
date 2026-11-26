@@ -218,7 +218,7 @@ async function pull(){
  try{const r=await fetch(API+'?key='+encodeURIComponent(code));
   if(r.status===401){code='';try{localStorage.removeItem('smith-code')}catch(e){}return askCode('That code didn’t work. Try again.')}
   if(!r.ok)throw 0;const j=await r.json();
-  synced=Array.isArray(j.events)?j.events:[];lastSync=j.lastSync;
+  synced=Array.isArray(j.events)?j.events:[];lastSync=j.lastSync;smsServer=!!j.sms;
   if(j.state&&j.state.members&&!saving&&!dirty&&j.stateAt!==stateAt){S=j.state;stateAt=j.stateAt;try{localStorage.setItem('smith-board',JSON.stringify(S))}catch(e){}}
   else if((!j.state||dirty)&&!saving)save(true);
   try{localStorage.setItem('smith-synced',JSON.stringify({events:synced,lastSync,stateAt}))}catch(e){}
@@ -329,7 +329,7 @@ function chores(){
  h+='</div><form class="row" id="cf"><input type="text" id="ct" placeholder="New chore" required><select id="cw">'+S.members.map(m=>'<option value="'+esc(m.id)+'">'+esc(m.name)+'</option>').join('')+'</select><button class="btn pri">Add chore</button><button class="btn" type="button" id="creset">Uncheck all</button></form></div>';
  return h;
 }
-let mTo=[],mText='';
+let mTo=[],mText='',smsServer=false,sending=false;
 const phoneOf=m=>(m.phone||'').replace(/[^\d+]/g,'');
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const isMac=/Macintosh/.test(navigator.userAgent)&&!isIOS;
@@ -345,7 +345,7 @@ function msgView(){
  '<div class="f"><label for="mt">Message</label><textarea id="mt" placeholder="Type a message…">'+esc(mText)+'</textarea></div>'+
  '<div class="quick">'+["Dinner’s ready!","Leaving in 10 minutes.","Chores before screens, please.","Call me when you can.","Love you guys!"].map(q=>'<button type="button" class="btn" data-q="'+esc(q)+'">'+esc(q)+'</button>').join('')+'</div>'+
  '<div class="row" style="margin-top:0"><button type="button" class="btn pri" id="msend">Send text</button><button type="button" class="btn" id="mpost">Post on the board</button></div>'+
- '<p class="hint" id="mhint">'+(withPh.length?'Send text opens Messages on this phone with everything filled in, so tap send there. On the TV, use Post on the board.':'Add mobile numbers under ⚙︎ Family to text people.')+'</p></div>';
+ '<p class="hint" id="mhint">'+(!withPh.length?'Add mobile numbers under ⚙︎ Family to text people.':smsServer?'Texts go out right away from the family number, one to each person.':'Send text opens Messages on this phone with everything filled in, so tap send there. On the TV, use Post on the board.')+'</p></div>';
 }
 function wireMsg(){
  const ta=$('mt');ta.oninput=()=>{mText=ta.value};
@@ -356,6 +356,13 @@ function wireMsg(){
  $('msend').onclick=()=>{const nums=mTo.map(mem).filter(Boolean).map(phoneOf).filter(Boolean);
   if(!nums.length){$('mhint').textContent='Pick who to text first.';return}
   if(!mText.trim()){$('mhint').textContent='Type a message first.';return}
+  if(smsServer){if(sending)return;sending=true;$('msend').textContent='Sending…';
+   fetch(API+'?action=sms',{method:'POST',headers:{'x-board-key':code,'content-type':'application/json'},body:JSON.stringify({to:mTo,body:mText.trim()})})
+   .then(r=>r.json()).then(j=>{const res=j.results||[];const ok=res.filter(x=>x.ok).map(x=>x.name),bad=res.filter(x=>!x.ok);
+    if(ok.length){mText='';mTo=[];render()}
+    const h=$('mhint');if(h)h.textContent=(ok.length?'Sent to '+ok.join(', ')+'.':'')+(bad.length?' Couldn’t text '+bad.map(x=>x.name+' ('+(x.error||'error')+')').join(', ')+'.':'')+(j.error?' '+j.error:'')})
+   .catch(()=>{const h=$('mhint');if(h)h.textContent='Couldn’t reach the texting service. Try again.'})
+   .finally(()=>{sending=false;const b=$('msend');if(b)b.textContent='Send text'});return}
   location.href=smsLink(nums,mText.trim());
   $('mhint').textContent='Opening Messages… If nothing happens, this screen can’t send texts. Use a phone, or Post on the board.'};
  $('mpost').onclick=()=>{if(!mText.trim()){$('mhint').textContent='Type a message first.';return}
