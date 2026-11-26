@@ -91,7 +91,7 @@ h1,h2,h3,.clock,.dnum{font-family:Fredoka,system-ui,sans-serif;font-weight:600;m
 .meal{display:grid;grid-template-columns:7.5em minmax(0,1fr);align-items:center;gap:10px}
 .meal b{font-family:Fredoka;font-weight:600;font-size:18px}
 .meal.td b{color:var(--accent)}
-input[type=text],input[type=date],input[type=time],select,textarea{min-height:44px;font-size:16px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);padding:8px 12px;width:100%}
+input[type=text],input[type=tel],input[type=date],input[type=time],select,textarea{min-height:44px;font-size:16px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);padding:8px 12px;width:100%}
 .chores{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
 .cg{border-radius:16px;padding:12px;background:color-mix(in srgb,var(--c) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--c) 35%,transparent)}
 .cg h3{color:color-mix(in srgb,var(--c) 75%,var(--ink));font-size:20px;margin-bottom:6px}
@@ -118,7 +118,12 @@ input[type=text],input[type=date],input[type=time],select,textarea{min-height:44
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{min-height:44px;padding:0 14px;border-radius:99px;border:2px solid var(--c);color:color-mix(in srgb,var(--c) 75%,var(--ink));font-weight:800}
 .chip.on{background:var(--c);color:#fff}
-.mrow{display:grid;grid-template-columns:minmax(0,1fr) 56px 44px;gap:8px;margin-bottom:8px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 56px 44px;gap:8px;margin-bottom:8px}
+.jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:22px}
+.job{border-radius:18px;padding:14px 16px;background:color-mix(in srgb,var(--c,#7d8580) 16%,var(--panel));border:2px solid color-mix(in srgb,var(--c,#7d8580) 45%,transparent)}
+.job h3{font-size:22px;margin-bottom:2px}.job p{margin:0 0 10px;color:var(--mute);font-size:14px}
+.job .who{font-family:Fredoka;font-weight:600;font-size:26px;color:color-mix(in srgb,var(--c,#7d8580) 80%,var(--ink));margin-bottom:8px}
+.sub{font-size:20px;margin:6px 0 10px}
 .mrow input[type=color]{width:56px;height:44px;border:0;background:none;padding:0}
 .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
 .btn.del{color:var(--warn);margin-right:auto}
@@ -184,6 +189,8 @@ function seed(){
 }
 let S;try{S=JSON.parse(localStorage.getItem('smith-board'))}catch(e){}
 if(!S||!S.members)S=seed();
+const JOBS=[{id:'garbage',name:'Garbage',note:'Cans to the street Sunday by 8 PM',who:null},{id:'dishwasher',name:'Load dishwasher',note:'After dinner',who:null},{id:'sweeping',name:'Sweeping',note:'Kitchen and entry',who:null}];
+if(!S.jobs)S.jobs=JSON.parse(JSON.stringify(JOBS));
 if(!S.calMap)S.calMap={'Fire Shifts':['jeremy'],"Annie's Calendar":['annie'],'Kids Calendar':['dutch','cooper']};
 const API='https://wtdxngoysurbjvryzaov.supabase.co/functions/v1/board';
 let code='';try{code=localStorage.getItem('smith-code')||''}catch(e){}
@@ -210,7 +217,8 @@ function syncedFor(k){const out=[];synced.forEach((e,i)=>{const st=new Date(e.st
  if(e.calendar==='Fire Shifts')title=/night/i.test(title)?'On shift (night)':'On shift (day)';
  const named=S.members.filter(m=>new RegExp('\\b'+m.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(title)).map(m=>m.id);
  const def=[].concat(S.calMap[e.calendar]||[]).filter(w=>S.members.some(m=>m.id===w));
- const who=named.length?named:def;
+ const job=(S.jobs||[]).find(j=>j.who&&j.name.toLowerCase()===title.trim().toLowerCase());
+ const who=job?[job.who]:named.length?named:def;
  const base={id:'s'+i,title,who:who.length?who:[],synced:true,cal:String(e.calendar||'')};
  if(e.all_day){let d=new Date(st.getFullYear(),st.getMonth(),st.getDate());const last=en?new Date(en.getTime()-1):d;for(let n=0;n<14&&ymd(d)<=ymd(last);n++,d=addD(d,1))if(ymd(d)===k)out.push({...base,date:k,start:'',end:''})}
  else if(ymd(st)===k)out.push({...base,date:k,start:hm(st),end:en?hm(en):'',overnight:en&&ymd(en)!==k});});return out}
@@ -290,7 +298,8 @@ function meals(){
  return '<div class="view"><h2>Dinners this week</h2><div class="meals">'+order.map(d=>'<label class="meal'+(d===td?' td':'')+'"><b>'+d+'</b><input type="text" data-meal="'+d+'" value="'+esc(S.meals[d]||'')+'" placeholder="What’s for dinner?"></label>').join('')+'</div></div>';
 }
 function chores(){
- let h='<div class="view"><h2>Chores</h2><div class="chores">';
+ if(!S.jobs)S.jobs=JSON.parse(JSON.stringify(JOBS));
+ let h='<div class="view"><h2>Chores</h2><h3 class="sub">This week’s jobs</h3><div class="jobs">'+S.jobs.map(j=>{const m=mem(j.who);return '<div class="job"'+(m?' style="--c:'+esc(m.color)+'"':'')+'><h3>'+esc(j.name)+'</h3><p>'+esc(j.note||'')+'</p><div class="who">'+(m?esc(m.name):'Not assigned')+'</div><select data-job="'+esc(j.id)+'" aria-label="Who has '+esc(j.name)+'"><option value="">Choose who…</option>'+S.members.map(x=>'<option value="'+esc(x.id)+'"'+(x.id===j.who?' selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select></div>'}).join('')+'</div><h3 class="sub">Checklists</h3><div class="chores">';
  for(const m of S.members){
   const cs=S.chores.filter(c=>c.who===m.id);
   h+='<div class="cg" style="--c:'+esc(m.color)+'"><h3>'+esc(m.name)+'</h3>'+(cs.length?cs.map(c=>'<label class="ch'+(c.done?' done':'')+'"><input type="checkbox" data-ck="'+esc(c.id)+'"'+(c.done?' checked':'')+'><span>'+esc(c.text)+'</span><button class="x" data-rm="'+esc(c.id)+'" aria-label="Remove chore">✕</button></label>').join(''):'<div class="empty">All clear</div>')+'</div>';
@@ -335,16 +344,16 @@ function tickerForm(){
 }
 function membersForm(){
  let ms=S.members.map(m=>({...m}));
- const draw=()=>{$('ml').innerHTML=ms.map((m,i)=>'<div class="mrow"><input type="text" data-i="'+i+'" value="'+esc(m.name)+'" aria-label="Name"><input type="color" data-c="'+i+'" value="'+esc(m.color)+'" aria-label="Colour"><button type="button" class="btn" data-r="'+i+'" aria-label="Remove">✕</button></div>').join('')};
- open('<h2>Family</h2><div id="ml"></div><button type="button" class="btn" id="madd">+ Add person</button><div class="acts"><button type="button" class="btn" id="mcan">Cancel</button><button type="button" class="btn pri" id="msave">Save</button></div>');
+ const draw=()=>{$('ml').innerHTML=ms.map((m,i)=>'<div class="mrow"><input type="text" data-i="'+i+'" value="'+esc(m.name)+'" aria-label="Name" placeholder="Name"><input type="tel" data-p="'+i+'" value="'+esc(m.phone||'')+'" aria-label="Mobile number for reminders" placeholder="Mobile (for texts)"><input type="color" data-c="'+i+'" value="'+esc(m.color)+'" aria-label="Colour"><button type="button" class="btn" data-r="'+i+'" aria-label="Remove">✕</button></div>').join('')};
+ open('<h2>Family</h2><p style="color:var(--mute);margin-top:-6px">Mobile numbers are used for chore reminder texts.</p><div id="ml"></div><button type="button" class="btn" id="madd">+ Add person</button><div class="acts"><button type="button" class="btn" id="mcan">Cancel</button><button type="button" class="btn pri" id="msave">Save</button></div>');
  draw();
  const pal=['#d6455d','#8a4fd8','#e0782b','#1f9bb5','#c9a227','#3c8d3f','#e05fa6'];
- $('ml').oninput=e=>{const t=e.target;if(t.dataset.i)ms[t.dataset.i].name=t.value;if(t.dataset.c)ms[t.dataset.c].color=t.value};
+ $('ml').oninput=e=>{const t=e.target;if(t.dataset.i)ms[t.dataset.i].name=t.value;if(t.dataset.p)ms[t.dataset.p].phone=t.value.trim();if(t.dataset.c)ms[t.dataset.c].color=t.value};
  $('ml').onclick=e=>{const b=e.target.closest('[data-r]');if(b){ms.splice(+b.dataset.r,1);draw()}};
  $('madd').onclick=()=>{ms.push({id:uid(),name:'',color:pal[ms.length%pal.length]});draw();const ins=$('ml').querySelectorAll('input[type=text]');ins[ins.length-1].focus()};
  $('mcan').onclick=close;
  $('msave').onclick=()=>{S.members=ms.filter(m=>m.name.trim()).map(m=>({...m,name:m.name.trim()}));const ids=S.members.map(m=>m.id);
-  S.events.forEach(e=>e.who=e.who.filter(w=>ids.includes(w)));S.chores=S.chores.filter(c=>ids.includes(c.who));if(filter&&!ids.includes(filter))filter=null;save();close();render()};
+  S.events.forEach(e=>e.who=e.who.filter(w=>ids.includes(w)));S.chores=S.chores.filter(c=>ids.includes(c.who));(S.jobs||[]).forEach(j=>{if(!ids.includes(j.who))j.who=null});if(filter&&!ids.includes(filter))filter=null;save();close();render()};
 }
 
 /* events */
@@ -365,6 +374,7 @@ document.addEventListener('click',e=>{
 $('board').addEventListener('change',e=>{
  const t=e.target;
  if(t.dataset.meal){S.meals[t.dataset.meal]=t.value;save()}
+ if(t.dataset.job!==undefined&&t.dataset.job){const j=S.jobs.find(x=>x.id===t.dataset.job);if(j){j.who=t.value||null;save();render()}}
  if(t.dataset.ck){const c=S.chores.find(x=>x.id===t.dataset.ck);if(c){c.done=t.checked;save();render()}}
 });
 $('board').addEventListener('submit',e=>{if(e.target.id!=='cf')return;e.preventDefault();
