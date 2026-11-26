@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
   if (req.method === "POST" && action === "state") {
     if (!given || given !== (await key("read"))) return json({ error: "bad key" }, 401);
     const body = await req.text();
-    if (body.length > 300000) return json({ error: "too large" }, 413);
+    if (body.length > 1500000) return json({ error: "too large" }, 413);
     let data: unknown;
     try { data = JSON.parse(body); } catch { return json({ error: "bad json" }, 400); }
     const at = new Date().toISOString();

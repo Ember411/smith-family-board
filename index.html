@@ -130,6 +130,10 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
 .job h3{font-size:22px;margin-bottom:2px}.job p{margin:0 0 10px;color:var(--mute);font-size:14px}
 .job .who{font-family:Fredoka;font-weight:600;font-size:26px;color:color-mix(in srgb,var(--c,#7d8580) 80%,var(--ink));margin-bottom:8px}
 .sub{font-size:20px;margin:6px 0 10px}
+.pe{position:fixed;inset:0;background:rgba(10,14,12,.6);display:grid;place-items:center;padding:16px;z-index:20}
+.pe .modal{width:min(420px,100%)}.pe .stage{position:relative;width:260px;height:260px;margin:4px auto 14px;border-radius:50%;overflow:hidden;background:var(--c);touch-action:none;cursor:grab;box-shadow:0 0 0 4px #fff,0 6px 18px rgba(0,0,0,.25)}
+.pe canvas{width:100%;height:100%;display:block}.pe input[type=range]{width:100%;accent-color:var(--accent);height:44px}
+.pe .st{color:var(--mute);font-size:14px;text-align:center;min-height:20px;margin:0 0 6px}
 .msg{max-width:760px}.msg textarea{min-height:110px;font-size:18px}
 .rcp{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.rcp .chip{display:inline-flex;align-items:center;gap:8px;padding-left:6px}.rcp .chip .av{--s:30px}
 .rcp .chip.off{opacity:.4;cursor:not-allowed}.quick{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px}.quick .btn{font-weight:600}
@@ -284,6 +288,56 @@ async function weather(){
 /* people */
 const okPic=u=>typeof u==='string'&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(u);
 const av=m=>'<span class="av" style="--c:'+esc(m.color)+'" title="'+esc(m.name)+'">'+(okPic(m.photo)?'<img alt="" src="'+m.photo+'">':esc((m.name||'?')[0].toUpperCase()))+'</span>';
+/* photo editor: zoom, drag, and background removal (MediaPipe selfie segmenter) */
+let segP=null;
+function getSeg(){
+ if(!segP)segP=(async()=>{const V='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+  const {FilesetResolver,ImageSegmenter}=await import(V+'/vision_bundle.mjs');
+  const fs=await FilesetResolver.forVisionTasks(V+'/wasm');
+  return ImageSegmenter.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',delegate:'CPU'},runningMode:'IMAGE',outputConfidenceMasks:true,outputCategoryMask:false})})().catch(e=>{segP=null;throw e});
+ return segP}
+async function personMask(src){
+ const seg=await getSeg();const res=seg.segment(src);const ms=res.confidenceMasks||[];if(!ms.length)throw 0;
+ const m=ms[ms.length-1],w=m.width,h=m.height,a=Float32Array.from(m.getAsFloat32Array());ms.forEach(x=>x.close&&x.close());
+ // make sure "person" is high in the middle, low at the edges
+ let ctr=0,cn=0,edge=0,en=0;for(let y=0;y<h;y++)for(let x=0;x<w;x++){const v=a[y*w+x];if(x>w*.35&&x<w*.65&&y>h*.3&&y<h*.7){ctr+=v;cn++}else if(x<w*.08||x>w*.92||y<h*.06){edge+=v;en++}}
+ if(ctr/cn<edge/en)for(let i=0;i<a.length;i++)a[i]=1-a[i];
+ const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d'),id=ctx.createImageData(w,h);
+ let x0=w,y0=h,x1=0,y1=0;
+ for(let i=0;i<a.length;i++){const v=Math.max(0,Math.min(1,(a[i]-.3)/.4));id.data[i*4]=id.data[i*4+1]=id.data[i*4+2]=255;id.data[i*4+3]=v*255;
+  if(v>.5){const x=i%w,y=(i/w)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
+ ctx.putImageData(id,0,0);return{c,box:x1>x0?{x0:x0/w,y0:y0/h,x1:x1/w,y1:y1/h}:null}}
+function photoEditor(file,color){return new Promise(async done=>{
+ const url=URL.createObjectURL(file),img=new Image();await new Promise(r=>{img.onload=r;img.onerror=r;img.src=url});URL.revokeObjectURL(url);if(!img.width)return done(null);
+ const sc=Math.min(1,1200/Math.max(img.width,img.height)),W=Math.round(img.width*sc),H=Math.round(img.height*sc);
+ const base=document.createElement('canvas');base.width=W;base.height=H;base.getContext('2d').drawImage(img,0,0,W,H);
+ let cut=null,rm=true,z=Math.min(W,H)*.62,cx=W/2,cy=H*.42;
+ const el=document.createElement('div');el.className='pe';
+ el.innerHTML='<div class="modal card"><h2>Adjust photo</h2><div class="stage" style="--c:'+esc(color)+'"><canvas width="520" height="520"></canvas></div><p class="st">Drag to move. Slide to zoom.</p><input type="range" min="0" max="100" value="50" aria-label="Zoom"><label class="ch" style="font-size:16px"><input type="checkbox" checked> Remove background</label><div class="acts"><button type="button" class="btn" data-a="x">Cancel</button><button type="button" class="btn pri" data-a="ok">Use photo</button></div></div>';
+ document.body.appendChild(el);
+ const cv=el.querySelector('canvas'),ctx=cv.getContext('2d'),st=el.querySelector('.st'),rng=el.querySelector('input[type=range]'),chk=el.querySelector('input[type=checkbox]');
+ const maxZ=Math.min(W,H),minZ=maxZ*.18;
+ const setR=()=>{rng.value=Math.round(100*(1-(z-minZ)/(maxZ-minZ)))};
+ const clamp=()=>{z=Math.max(minZ,Math.min(maxZ,z));cx=Math.max(z/2,Math.min(W-z/2,cx));cy=Math.max(z/2,Math.min(H-z/2,cy))};
+ const paint=(c,n)=>{const g=c.getContext('2d');g.clearRect(0,0,n,n);g.imageSmoothingQuality='high';g.drawImage(rm&&cut?cut:base,cx-z/2,cy-z/2,z,z,0,0,n,n)};
+ const drawP=()=>{clamp();paint(cv,520)};
+ setR();drawP();
+ rng.oninput=()=>{z=maxZ-(rng.value/100)*(maxZ-minZ);drawP()};
+ chk.onchange=()=>{rm=chk.checked;drawP()};
+ let drag=null;cv.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,cx,cy};cv.setPointerCapture(e.pointerId)};
+ cv.onpointermove=e=>{if(!drag)return;const k=z/cv.clientWidth;cx=drag.cx-(e.clientX-drag.x)*k;cy=drag.cy-(e.clientY-drag.y)*k;drawP()};
+ cv.onpointerup=cv.onpointercancel=()=>{drag=null};
+ const finish=v=>{el.remove();done(v)};
+ el.querySelector('[data-a=x]').onclick=()=>finish(null);
+ el.querySelector('[data-a=ok]').onclick=()=>{const o=document.createElement('canvas');o.width=o.height=176;paint(o,176);finish(rm&&cut?o.toDataURL('image/png'):o.toDataURL('image/jpeg',.85))};
+ st.textContent='Finding the person…';
+ try{const s2=Math.min(1,512/Math.max(W,H)),sm=document.createElement('canvas');sm.width=Math.round(W*s2);sm.height=Math.round(H*s2);sm.getContext('2d').drawImage(base,0,0,sm.width,sm.height);
+  const {c:mk,box}=await personMask(sm);
+  cut=document.createElement('canvas');cut.width=W;cut.height=H;const g=cut.getContext('2d');g.drawImage(base,0,0);g.globalCompositeOperation='destination-in';g.imageSmoothingQuality='high';g.drawImage(mk,0,0,W,H);
+  if(box){const bw=(box.x1-box.x0)*W;z=Math.max(minZ,Math.min(maxZ,bw*.95));cx=(box.x0+box.x1)/2*W;cy=box.y0*H+z*.46;setR()}
+  st.textContent='Background removed. Drag and zoom to fit.';drawP();
+ }catch(e){rm=false;chk.checked=false;chk.disabled=true;st.textContent='Couldn’t remove the background on this device. Drag and zoom to fit.';drawP()}
+})}
 function people(){
  $('people').innerHTML=S.members.map(m=>'<button class="pill'+(filter===m.id?' on':filter?' dim':'')+'" style="--c:'+esc(m.color)+'" data-m="'+esc(m.id)+'">'+av(m)+'<span>'+esc(m.name)+'</span></button>').join('')+
  '<button class="pill gear" id="gear" aria-label="Edit family members">⚙︎</button>';
@@ -430,8 +484,7 @@ function membersForm(){
  $('ml').oninput=e=>{const t=e.target;if(t.dataset.i)ms[t.dataset.i].name=t.value;if(t.dataset.p)ms[t.dataset.p].phone=t.value.trim();if(t.dataset.c)ms[t.dataset.c].color=t.value};
  let phI=-1;
  $('ml').onclick=e=>{const p=e.target.closest('[data-ph]');if(p){phI=+p.dataset.ph;$('mpic').click();return}const b=e.target.closest('[data-r]');if(b){ms.splice(+b.dataset.r,1);draw()}};
- $('mpic').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||phI<0)return;const url=URL.createObjectURL(f),img=new Image();await new Promise(r=>{img.onload=r;img.onerror=r;img.src=url});URL.revokeObjectURL(url);if(!img.width)return;
-  const z=Math.min(img.width,img.height),c=document.createElement('canvas');c.width=c.height=160;c.getContext('2d').drawImage(img,(img.width-z)/2,(img.height-z)/2.6,z,z,0,0,160,160);ms[phI].photo=c.toDataURL('image/jpeg',.8);draw()};
+ $('mpic').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||phI<0)return;const r=await photoEditor(f,ms[phI].color);if(r){ms[phI].photo=r;draw()}};
  $('madd').onclick=()=>{ms.push({id:uid(),name:'',color:pal[ms.length%pal.length]});draw();const ins=$('ml').querySelectorAll('input[type=text]');ins[ins.length-1].focus()};
  $('mcan').onclick=close;
  $('msave').onclick=()=>{S.members=ms.filter(m=>m.name.trim()).map(m=>({...m,name:m.name.trim()}));const ids=S.members.map(m=>m.id);
