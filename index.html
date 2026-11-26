@@ -108,7 +108,7 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .row>*{flex:1 1 160px}
 /* nav */
-.nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:clamp(8px,.9vw,14px)}
+.nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:clamp(8px,.9vw,14px)}
 .tab{min-height:56px;border-radius:16px;background:var(--panel);border:1px solid var(--line);font-weight:800;font-size:clamp(15px,1.1vw,19px);display:flex;align-items:center;justify-content:center;gap:10px}
 .tab svg{width:22px;height:22px}
 .tab.on{background:var(--accent);color:light-dark(#fff,#0b1a14);border-color:transparent}
@@ -130,6 +130,10 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
 .job h3{font-size:22px;margin-bottom:2px}.job p{margin:0 0 10px;color:var(--mute);font-size:14px}
 .job .who{font-family:Fredoka;font-weight:600;font-size:26px;color:color-mix(in srgb,var(--c,#7d8580) 80%,var(--ink));margin-bottom:8px}
 .sub{font-size:20px;margin:6px 0 10px}
+.msg{max-width:760px}.msg textarea{min-height:110px;font-size:18px}
+.rcp{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.rcp .chip{display:inline-flex;align-items:center;gap:8px;padding-left:6px}.rcp .chip .av{--s:30px}
+.rcp .chip.off{opacity:.4;cursor:not-allowed}.quick{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px}.quick .btn{font-weight:600}
+.hint{color:var(--mute);font-size:14px;margin:8px 0 0}
 .mrow input[type=color]{width:56px;height:44px;border:0;background:none;padding:0}
 .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
 .btn.del{color:var(--warn);margin-right:auto}
@@ -142,7 +146,7 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
  .main{grid-template-columns:1fr}.photo{min-height:340px;order:-1}
  .days{grid-template-columns:1fr}.day{border-right:0;border-bottom:1px solid var(--line)}
  .bar{flex-wrap:wrap}.ticker{flex-basis:100%;order:5}
- .nav{grid-template-columns:repeat(3,minmax(0,1fr))}.fs{display:none}
+ .nav{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.tab{flex-direction:column;gap:2px;font-size:13px;min-height:60px}.fs{display:none}
  .pill{flex:0 0 auto;min-width:0;padding:0 14px 0 6px;font-size:18px}.pill .av{--s:32px}
 }
 </style>
@@ -163,6 +167,7 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
   <button class="tab" data-v="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</button>
   <button class="tab" data-v="meals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 2-3 5-3 8h3v10"/></svg>Meals</button>
   <button class="tab" data-v="chores"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m8 10 2 2 4-4M8 16h8"/></svg>Chores</button>
+  <button class="tab" data-v="msg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H9l-5 4z"/></svg>Message</button>
   <button class="tab fs" id="fs" title="Full screen" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
  </nav>
 </div>
@@ -324,10 +329,44 @@ function chores(){
  h+='</div><form class="row" id="cf"><input type="text" id="ct" placeholder="New chore" required><select id="cw">'+S.members.map(m=>'<option value="'+esc(m.id)+'">'+esc(m.name)+'</option>').join('')+'</select><button class="btn pri">Add chore</button><button class="btn" type="button" id="creset">Uncheck all</button></form></div>';
  return h;
 }
+let mTo=[],mText='';
+const phoneOf=m=>(m.phone||'').replace(/[^\d+]/g,'');
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const isMac=/Macintosh/.test(navigator.userAgent)&&!isIOS;
+function smsLink(nums,body){const b=encodeURIComponent(body);
+ if(isIOS||isMac)return nums.length>1?'sms:/open?addresses='+nums.join(',')+'&body='+b:'sms:'+nums[0]+'&body='+b;
+ return 'sms:'+nums.join(',')+'?body='+b}
+function msgView(){
+ const withPh=S.members.filter(m=>phoneOf(m));
+ const allOn=withPh.length&&withPh.every(m=>mTo.includes(m.id));
+ return '<div class="view msg"><h2>Message the family</h2>'+
+ '<div class="f"><span class="lbl">To</span><div class="rcp" id="rcp"><button type="button" class="chip'+(allOn?' on':'')+'" style="--c:var(--accent)" data-to="__all">Everyone</button>'+
+ S.members.map(m=>{const has=!!phoneOf(m);return '<button type="button" class="chip'+(mTo.includes(m.id)?' on':'')+(has?'':' off')+'" style="--c:'+esc(m.color)+'" data-to="'+esc(m.id)+'"'+(has?'':' aria-disabled="true" title="Add a mobile number under ⚙︎ Family"')+'>'+av(m)+esc(m.name)+'</button>'}).join('')+'</div></div>'+
+ '<div class="f"><label for="mt">Message</label><textarea id="mt" placeholder="Type a message…">'+esc(mText)+'</textarea></div>'+
+ '<div class="quick">'+["Dinner’s ready!","Leaving in 10 minutes.","Chores before screens, please.","Call me when you can.","Love you guys!"].map(q=>'<button type="button" class="btn" data-q="'+esc(q)+'">'+esc(q)+'</button>').join('')+'</div>'+
+ '<div class="row" style="margin-top:0"><button type="button" class="btn pri" id="msend">Send text</button><button type="button" class="btn" id="mpost">Post on the board</button></div>'+
+ '<p class="hint" id="mhint">'+(withPh.length?'Send text opens Messages on this phone with everything filled in, so tap send there. On the TV, use Post on the board.':'Add mobile numbers under ⚙︎ Family to text people.')+'</p></div>';
+}
+function wireMsg(){
+ const ta=$('mt');ta.oninput=()=>{mText=ta.value};
+ $('rcp').onclick=e=>{const b=e.target.closest('[data-to]');if(!b||b.classList.contains('off'))return;const id=b.dataset.to;
+  const withPh=S.members.filter(m=>phoneOf(m)).map(m=>m.id);
+  if(id==='__all')mTo=withPh.every(x=>mTo.includes(x))?[]:withPh;else mTo=mTo.includes(id)?mTo.filter(x=>x!==id):[...mTo,id];render()};
+ document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{mText=b.dataset.q;ta.value=mText;ta.focus()});
+ $('msend').onclick=()=>{const nums=mTo.map(mem).filter(Boolean).map(phoneOf).filter(Boolean);
+  if(!nums.length){$('mhint').textContent='Pick who to text first.';return}
+  if(!mText.trim()){$('mhint').textContent='Type a message first.';return}
+  location.href=smsLink(nums,mText.trim());
+  $('mhint').textContent='Opening Messages… If nothing happens, this screen can’t send texts. Use a phone, or Post on the board.'};
+ $('mpost').onclick=()=>{if(!mText.trim()){$('mhint').textContent='Type a message first.';return}
+  const names=mTo.length&&mTo.length<S.members.filter(m=>phoneOf(m)).length?mTo.map(mem).filter(Boolean).map(m=>m.name).join(', ')+': ':'';
+  S.ticker=names+mText.trim();save();mText='';mTo=[];view='cal';render()};
+}
 function render(){
  applyRot();
  people();
- $('board').innerHTML=view==='cal'?cal():view==='meals'?meals():chores();
+ $('board').innerHTML=view==='cal'?cal():view==='meals'?meals():view==='msg'?msgView():chores();
+ if(view==='msg')wireMsg();
  document.querySelectorAll('.tab[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
 }
 
