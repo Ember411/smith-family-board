@@ -224,8 +224,11 @@ function syncedFor(k){const out=[];synced.forEach((e,i)=>{const st=new Date(e.st
  const named=S.members.filter(m=>new RegExp('\\b'+m.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(title)).map(m=>m.id);
  const def=[].concat(S.calMap[e.calendar]||[]).filter(w=>S.members.some(m=>m.id===w));
  const job=(S.jobs||[]).find(j=>j.who&&j.name.toLowerCase()===title.trim().toLowerCase());
- const who=job?[job.who]:named.length?named:def;
- const base={id:'s'+i,title,who:who.length?who:[],synced:true,cal:String(e.calendar||'')};
+ const okey=e.calendar+'|'+e.title+'|'+e.starts_at,skey=e.calendar+'|'+e.title,at=S.attend||{};
+ const valid=a=>Array.isArray(a)?a.filter(w=>S.members.some(m=>m.id===w)):null;
+ const ov=valid((at.occ||{})[okey])||valid((at.series||{})[skey]);
+ const who=ov?ov:job?[job.who]:named.length?named:def;
+ const base={id:'s'+i,title,who:who.length?who:[],synced:true,cal:String(e.calendar||''),okey,skey,picked:!!ov,series:!!valid((at.series||{})[skey])&&!valid((at.occ||{})[okey])};
  if(e.all_day){let d=new Date(st.getFullYear(),st.getMonth(),st.getDate());const last=en?new Date(en.getTime()-1):d;for(let n=0;n<14&&ymd(d)<=ymd(last);n++,d=addD(d,1))if(ymd(d)===k)out.push({...base,date:k,start:'',end:''})}
  else if(ymd(st)===k)out.push({...base,date:k,start:hm(st),end:en?hm(en):'',overnight:en&&ymd(en)!==k});});return out}
 let view='cal',start=new Date(),filter=null;
@@ -344,6 +347,21 @@ function evForm(e,date){
   if(n.start&&!n.end){const m=mins(n.start)+60;n.end=pad(Math.min(23,Math.floor(m/60)))+':'+pad(m%60)}
   S.events=S.events.filter(x=>x.id!==e.id).concat(n);save();close();render()};
 }
+function attendForm(e){
+ let who=[...e.who];
+ const time=e.start?fmtT(e.start)+(e.end?' – '+fmtT(e.end):''):'All day';
+ open('<h2>'+esc(e.title)+'</h2><p style="color:var(--mute);margin-top:-6px">'+esc(time)+' · from '+esc(e.cal)+'</p><div class="f"><span class="lbl">Who’s going?</span><div class="chips" id="ac"></div></div>'+
+ '<label class="ch" style="font-size:16px"><input type="checkbox" id="aser"'+(e.series?' checked':'')+'> Use for every “'+esc(e.title)+'” event</label>'+
+ '<p style="color:var(--mute);font-size:14px">Time and title come from your phone’s calendar. Change those there.</p>'+
+ '<div class="acts">'+(e.picked?'<button type="button" class="btn del" id="arst">Reset to automatic</button>':'')+'<button type="button" class="btn" id="acan">Cancel</button><button type="button" class="btn pri" id="asav">Save</button></div>');
+ const chips=()=>{$('ac').innerHTML=S.members.map(m=>'<button type="button" class="chip'+(who.includes(m.id)?' on':'')+'" style="--c:'+esc(m.color)+'" data-w="'+esc(m.id)+'">'+esc(m.name)+'</button>').join('')};chips();
+ $('ac').onclick=ev=>{const b=ev.target.closest('[data-w]');if(!b)return;const id=b.dataset.w;who=who.includes(id)?who.filter(x=>x!==id):[...who,id];chips()};
+ $('acan').onclick=close;
+ const at=()=>{S.attend=S.attend||{};S.attend.occ=S.attend.occ||{};S.attend.series=S.attend.series||{};return S.attend};
+ const prune=a=>{const cut=Date.now()-30*864e5;for(const k of Object.keys(a.occ)){const t=Date.parse(k.split('|').pop());if(t&&t<cut)delete a.occ[k]}};
+ if(e.picked)$('arst').onclick=()=>{const a=at();delete a.occ[e.okey];delete a.series[e.skey];save();close();render()};
+ $('asav').onclick=()=>{const a=at();if($('aser').checked){a.series[e.skey]=who;delete a.occ[e.okey]}else{a.occ[e.okey]=who}prune(a);save();close();render()};
+}
 function tickerForm(){
  open('<h2>Edit ticker</h2><form id="tf"><div class="f"><label for="tt">Message</label><textarea id="tt" rows="3">'+esc(S.ticker)+'</textarea></div><div class="acts"><button type="button" class="btn" id="tcan">Cancel</button><button class="btn pri">Save</button></div></form>');
  $('tcan').onclick=close;
@@ -374,7 +392,7 @@ document.addEventListener('click',e=>{
  if(t.id==='tod'){start=new Date();render()}
  if(t.id==='edtk')tickerForm();
  if(t.dataset.add)evForm(null,t.dataset.add);
- if(t.dataset.ev){if(t.dataset.ev[0]==='s'){const e=syncedFor(t.dataset.k).find(x=>x.id===t.dataset.ev);if(e)open('<h2>'+esc(e.title)+'</h2><p>From the <b>'+esc(e.cal)+'</b> calendar on your phone. Change it there and the board picks it up on the next sync.</p><div class="acts"><button type="button" class="btn pri" id="iok">OK</button></div>');const ok=document.getElementById('iok');if(ok)ok.onclick=close}else evForm(S.events.find(x=>x.id===t.dataset.ev))}
+ if(t.dataset.ev){if(t.dataset.ev[0]==='s'){const e=syncedFor(t.dataset.k).find(x=>x.id===t.dataset.ev);if(e)attendForm(e)}else evForm(S.events.find(x=>x.id===t.dataset.ev))}
  if(t.dataset.rm){S.chores=S.chores.filter(c=>c.id!==t.dataset.rm);save();render()}
  if(t.id==='creset'){S.chores.forEach(c=>c.done=false);save();render()}
 });
