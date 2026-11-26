@@ -176,15 +176,15 @@ function seed(){
  const t=new Date(),d0=ymd(t),d1=ymd(addD(t,1)),d2=ymd(addD(t,2));
  const J='jeremy',A='annie';
  return {ticker:'Happy Thanksgiving week from the Smiths!',
-  members:[{id:J,name:'Jeremy',color:'#2f6fd6'},{id:A,name:'Annie',color:'#2f9a6c'},{id:'kids',name:'Kids',color:'#e0782b'}],
-  calMap:{'Fire Shifts':J,"Annie's Calendar":A,'Kids Calendar':'kids'},
+  members:[{id:J,name:'Jeremy',color:'#2f6fd6'},{id:A,name:'Annie',color:'#2f9a6c'},{id:'brooklyn',name:'Brooklyn',color:'#d6455d'},{id:'dutch',name:'Dutch',color:'#c9a227'},{id:'landyn',name:'Landyn',color:'#8a4fd8'},{id:'cooper',name:'Cooper',color:'#e0782b'},{id:'brighton',name:'Brighton',color:'#1f9bb5'},{id:'holland',name:'Holland',color:'#e05fa6'}],
+  calMap:{'Fire Shifts':[J],"Annie's Calendar":[A],'Kids Calendar':['brooklyn','dutch','landyn','cooper','brighton','holland']},
   events:[],
   meals:{Thursday:'Thanksgiving!'},
   chores:[]};
 }
 let S;try{S=JSON.parse(localStorage.getItem('smith-board'))}catch(e){}
 if(!S||!S.members)S=seed();
-if(!S.calMap)S.calMap={'Fire Shifts':'jeremy',"Annie's Calendar":'annie','Kids Calendar':'kids'};
+if(!S.calMap)S.calMap={'Fire Shifts':['jeremy'],"Annie's Calendar":['annie'],'Kids Calendar':['brooklyn','dutch','landyn','cooper','brighton','holland']};
 const API='https://wtdxngoysurbjvryzaov.supabase.co/functions/v1/board';
 let code='';try{code=localStorage.getItem('smith-code')||''}catch(e){}
 let synced=[],lastSync=null,stateAt=null,saving=false,pending=false,dirty=false;
@@ -208,7 +208,9 @@ function askCode(msg){
 const hm=d=>pad(d.getHours())+':'+pad(d.getMinutes());
 function syncedFor(k){const out=[];synced.forEach((e,i)=>{const st=new Date(e.starts_at),en=e.ends_at?new Date(e.ends_at):null;let title=String(e.title||'');
  if(e.calendar==='Fire Shifts')title=/night/i.test(title)?'On shift (night)':'On shift (day)';
- const who=[S.calMap[e.calendar]].filter(w=>w&&S.members.some(m=>m.id===w));
+ const named=S.members.filter(m=>new RegExp('\\b'+m.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(title)).map(m=>m.id);
+ const def=[].concat(S.calMap[e.calendar]||[]).filter(w=>S.members.some(m=>m.id===w));
+ const who=named.length?named:def;
  const base={id:'s'+i,title,who:who.length?who:[],synced:true,cal:String(e.calendar||'')};
  if(e.all_day){let d=new Date(st.getFullYear(),st.getMonth(),st.getDate());const last=en?new Date(en.getTime()-1):d;for(let n=0;n<14&&ymd(d)<=ymd(last);n++,d=addD(d,1))if(ymd(d)===k)out.push({...base,date:k,start:'',end:''})}
  else if(ymd(st)===k)out.push({...base,date:k,start:hm(st),end:en?hm(en):'',overnight:en&&ymd(en)!==k});});return out}
