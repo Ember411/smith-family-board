@@ -88,6 +88,18 @@ h1,h2,h3,.clock,.dnum{font-family:Fredoka,system-ui,sans-serif;font-weight:600;m
 .photo img.show{opacity:1}
 .photo .ph{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--mute)}
 .photo .ph svg{width:min(70%,260px);height:auto;margin:0 auto 12px;display:block}
+.pin{position:absolute;inset:0}
+.ytdock{position:absolute;inset:0;background:#000;display:flex;flex-direction:column;z-index:2}.ytdock[hidden]{display:none}
+.ytdock #ytp,.ytdock iframe{flex:1;width:100%;min-height:0;border:0}
+.ytbar{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(0,0,0,.85);color:#fff}.ytbar span{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ytbar .btn{background:rgba(255,255,255,.12);color:#fff;border-color:transparent;min-height:40px}
+.lists{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:18px}
+.pl{position:relative;text-align:left;border-radius:18px;padding:16px;min-height:96px;color:#fff;background:linear-gradient(135deg,var(--a),var(--b));box-shadow:0 10px 22px -14px var(--a)}
+.pl b{display:block;font:600 22px/1.15 Fredoka,sans-serif}.pl small{opacity:.9;font-weight:700}.pl.on{outline:4px solid var(--ink);outline-offset:2px}
+.pl .del{position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.25);color:#fff}
+.np{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border-radius:16px;background:var(--panel2);border:1px solid var(--line);margin-bottom:16px}
+.np .t{flex:1 1 220px;font-weight:800;font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.np .btn{min-width:52px;font-size:18px}.np input[type=range]{flex:0 1 160px;accent-color:var(--accent);height:44px}
 .photo .pbtns{position:absolute;right:10px;bottom:10px;display:flex;gap:8px}
 .photo .pbtns .btn{background:rgba(0,0,0,.45);color:#fff;border-color:transparent;backdrop-filter:blur(6px)}
 /* other views */
@@ -108,7 +120,7 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .row>*{flex:1 1 160px}
 /* nav */
-.nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:clamp(8px,.9vw,14px)}
+.nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto;gap:clamp(8px,.9vw,14px)}
 .tab{min-height:56px;border-radius:16px;background:var(--panel);border:1px solid var(--line);font-weight:800;font-size:clamp(15px,1.1vw,19px);display:flex;align-items:center;justify-content:center;gap:10px}
 .tab svg{width:22px;height:22px}
 .tab.on{background:var(--accent);color:light-dark(#fff,#0b1a14);border-color:transparent}
@@ -150,7 +162,8 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
  .main{grid-template-columns:1fr}.photo{min-height:340px;order:-1}
  .days{grid-template-columns:1fr}.day{border-right:0;border-bottom:1px solid var(--line)}
  .bar{flex-wrap:wrap}.ticker{flex-basis:100%;order:5}
- .nav{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.tab{flex-direction:column;gap:2px;font-size:13px;min-height:60px}.fs{display:none}
+ .nav{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}.tab{flex-direction:column;gap:2px;font-size:13px;min-height:60px}.fs{display:none}
+ .np .t{flex-basis:100%}.np input[type=range]{flex:1 1 120px}.lists{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.pl{min-height:84px;padding:12px}.pl b{font-size:18px}
  .pill{flex:0 0 auto;min-width:0;padding:0 14px 0 6px;font-size:18px}.pill .av{--s:32px}
 }
 </style>
@@ -165,13 +178,14 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
  <nav class="people" id="people" aria-label="Family members"></nav>
  <main class="main">
   <section class="board card" id="board"></section>
-  <section class="photo card" id="photo"></section>
+  <section class="photo card" id="photo"><div id="pin" class="pin"></div><div id="ytdock" class="ytdock" hidden><div id="ytp"></div><div class="ytbar"><span id="ytnow">Music</span><button class="btn" id="ytstop">Close</button></div></div></section>
  </main>
  <nav class="nav">
   <button class="tab" data-v="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</button>
   <button class="tab" data-v="meals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 2-3 5-3 8h3v10"/></svg>Meals</button>
   <button class="tab" data-v="chores"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m8 10 2 2 4-4M8 16h8"/></svg>Chores</button>
   <button class="tab" data-v="msg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H9l-5 4z"/></svg>Message</button>
+  <button class="tab" data-v="music"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Music</button>
   <button class="tab fs" id="fs" title="Full screen" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
  </nav>
 </div>
@@ -423,11 +437,71 @@ function wireMsg(){
   const names=mTo.length&&mTo.length<S.members.filter(m=>phoneOf(m)).length?mTo.map(mem).filter(Boolean).map(m=>m.name).join(', ')+': ':'';
   S.ticker=names+mText.trim();save();mText='';mTo=[];view='cal';render()};
 }
+/* ---------- music (YouTube) ---------- */
+const PLAYLISTS=[
+ {id:'country',name:'Country',a:'#b5651d',b:'#e0a04a',v:['4zAThXFOy2c','lydBPm2KRaU','awzNHuGqoMc','w2CELiObPeQ','uXyxFMbqKYA','e4ujS1er1r0','hvKyBcCDOB4']},
+ {id:'grunge',name:'90s Alternative & Grunge',a:'#2f3a3a',b:'#6b7a5a',v:['hTWKbfoikeg','vabnZ9-ex7o','3mbBbFH9fAg','yjJL9DGU7Gg','CxKWTzr-k6s','eBG7P-K-r1Y','4aeETEoNfOg','kemivUKb4f4','bx1Bh8ZvH84','xwtdhWltSIg','NdYWuo9OFAw','G6Kspj3OO0s']},
+ {id:'2000s',name:'2000s Sing-Along',a:'#c2185b',b:'#8e44ad',v:['5NPBIwQyPWE','TIy3n2b7V9k','dGR65RWwzg8','R7UrFYvl5TE','Ra-Om7UMSJc','Cbo2n2MzxxE','Cwkej79U3ek','VuNIsY6JdUw','b7k0a5hYnSI','M11SvDtPBhA']},
+ {id:'kids',name:'Kids',a:'#1f9bb5',b:'#2f9a6c',v:['y6Sxv-sUYtM','ru0K8uYEZWw','L0MK7qz13bU','cPAbx5kgCJo','bvWRMAU6V-c','c6rP-YP4c5I','nfWlot6h_JM','CevxZvSJLk8']}];
+const CUSTOM_COL=[['#3a5a8c','#6f8fc4'],['#7a4b2a','#c4875a'],['#4b2a7a','#9a6fc4'],['#2a6b4b','#5ac48a']];
+const BLOCK=/\b(explicit|uncensored|dirty version|parental advisory)\b/i;
+let yt=null,ytReady=false,ytPending=null,curList=null,ytTitle='',shuffleOn=true,ytVol=70;
+function allLists(){const m=S.music||{};const extra=m.extra||{};
+ return PLAYLISTS.map(p=>({...p,v:p.v.concat(extra[p.id]||[]),builtin:true})).concat((m.custom||[]).map((c,i)=>({...c,a:CUSTOM_COL[i%4][0],b:CUSTOM_COL[i%4][1]})))}
+function loadYT(){if(window.YT&&window.YT.Player){initYT();return}if(document.getElementById('ytapi'))return;
+ window.onYouTubeIframeAPIReady=initYT;const sc=document.createElement('script');sc.id='ytapi';sc.src='https://www.youtube.com/iframe_api';document.head.appendChild(sc)}
+function initYT(){if(yt)return;yt=new YT.Player('ytp',{width:'100%',height:'100%',playerVars:{playsinline:1,rel:0,modestbranding:1,iv_load_policy:3},events:{
+ onReady:()=>{ytReady=true;try{yt.setVolume(ytVol)}catch(e){}if(ytPending){const p=ytPending;ytPending=null;startList(p)}},
+ onStateChange:e=>{if(e.data===1){const d=yt.getVideoData?yt.getVideoData():{};ytTitle=d&&d.title||'';if(BLOCK.test(ytTitle)){yt.nextVideo();return}}
+  const n=$('ytnow');if(n)n.textContent=ytTitle||'Music';const t=$('npT');if(t)t.textContent=ytTitle||'Pick a playlist';const pb=$('npPlay');if(pb)pb.textContent=e.data===1?'❚❚':'▶'},
+ onError:()=>{try{yt.nextVideo()}catch(e){}}}})}
+function startList(l){curList=l.id;$('ytdock').hidden=false;
+ if(!ytReady){ytPending=l;loadYT();render();return}
+ if(l.list){yt.loadPlaylist({list:l.list,listType:'playlist'});setTimeout(()=>{try{yt.setShuffle(shuffleOn);if(shuffleOn)yt.nextVideo()}catch(e){}},1200)}
+ else{let v=l.v.slice();if(shuffleOn)for(let i=v.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[v[i],v[j]]=[v[j],v[i]]}yt.loadPlaylist(v,0)}
+ render()}
+function parseYT(u){u=String(u||'').trim();let m;
+ const list=(m=u.match(/[?&]list=([A-Za-z0-9_-]{10,64})/))?m[1]:null;
+ const vid=(m=u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([A-Za-z0-9_-]{11})/))?m[1]:(/^[A-Za-z0-9_-]{11}$/.test(u)?u:null);
+ return{list,vid}}
+function musicView(){
+ const ls=allLists();
+ return '<div class="view"><h2>Music</h2>'+
+ '<div class="np"><span class="t" id="npT">'+esc(ytTitle||(curList?'Loading…':'Pick a playlist'))+'</span>'+
+ '<button class="btn" id="npPrev" aria-label="Previous song">⏮</button><button class="btn pri" id="npPlay" aria-label="Play or pause">'+(yt&&yt.getPlayerState&&yt.getPlayerState()===1?'❚❚':'▶')+'</button><button class="btn" id="npNext" aria-label="Next song">⏭</button>'+
+ '<button class="btn'+(shuffleOn?' pri':'')+'" id="npShuf" aria-label="Shuffle">🔀</button><input type="range" id="npVol" min="0" max="100" value="'+ytVol+'" aria-label="Volume"></div>'+
+ '<div class="lists">'+ls.map(l=>'<button class="pl'+(curList===l.id?' on':'')+'" style="--a:'+l.a+';--b:'+l.b+'" data-pl="'+esc(l.id)+'"><b>'+esc(l.name)+'</b><small>'+(l.list?'YouTube playlist':l.v.length+(l.v.length===1?' song':' songs'))+'</small>'+(l.builtin?'':'<span class="del" role="button" data-pldel="'+esc(l.id)+'" aria-label="Delete playlist">✕</span>')+'</button>').join('')+'</div>'+
+ '<h3 class="sub">Add music</h3><form class="row" id="addm" style="margin-top:0"><input type="text" id="amUrl" placeholder="Paste a YouTube song or playlist link" required><select id="amTo">'+ls.filter(l=>!l.list).map(l=>'<option value="'+esc(l.id)+'">Add to '+esc(l.name)+'</option>').join('')+'<option value="__new">New playlist…</option></select><input type="text" id="amName" placeholder="New playlist name" hidden><button class="btn pri">Add</button></form>'+
+ '<p class="hint" id="amHint">Songs play on this screen, in the photo spot. Anything labeled explicit gets skipped.</p></div>';
+}
+function wireMusic(){
+ if(!yt)loadYT();
+ const ls=allLists();
+ $('board').querySelectorAll('[data-pl]').forEach(b=>b.onclick=e=>{const d=e.target.closest('[data-pldel]');
+  if(d){S.music.custom=(S.music.custom||[]).filter(c=>c.id!==d.dataset.pldel);if(curList===d.dataset.pldel)curList=null;save();render();return}
+  const l=ls.find(x=>x.id===b.dataset.pl);if(l)startList(l)});
+ $('npPlay').onclick=()=>{if(!yt||!ytReady){const l=ls[0];if(l)startList(l);return}if(!curList){startList(ls[0]);return}yt.getPlayerState()===1?yt.pauseVideo():yt.playVideo()};
+ $('npNext').onclick=()=>{try{yt.nextVideo()}catch(e){}};
+ $('npPrev').onclick=()=>{try{yt.previousVideo()}catch(e){}};
+ $('npShuf').onclick=()=>{shuffleOn=!shuffleOn;try{yt.setShuffle(shuffleOn)}catch(e){}render()};
+ $('npVol').oninput=e=>{ytVol=+e.target.value;try{yt.setVolume(ytVol)}catch(x){}};
+ $('amTo').onchange=e=>{$('amName').hidden=e.target.value!=='__new'};
+ $('addm').onsubmit=e=>{e.preventDefault();const {list,vid}=parseYT($('amUrl').value);const h=$('amHint');
+  S.music=S.music||{};S.music.extra=S.music.extra||{};S.music.custom=S.music.custom||[];
+  let to=$('amTo').value;
+  if(to==='__new'){const name=$('amName').value.trim()||'My playlist';const id='c'+uid();
+   if(list&&!vid){S.music.custom.push({id,name,list,v:[]});save();render();return}
+   S.music.custom.push({id,name,v:[]});to=id}
+  if(list&&!vid){h.textContent='That’s a playlist link. Choose “New playlist…” to add it.';return}
+  if(!vid){h.textContent='That doesn’t look like a YouTube link.';return}
+  const c=S.music.custom.find(x=>x.id===to);if(c){if(!c.v.includes(vid))c.v.push(vid)}else{const ex=S.music.extra[to]=S.music.extra[to]||[];if(!ex.includes(vid))ex.push(vid)}
+  save();render()};
+}
 function render(){
  applyRot();
  people();
- $('board').innerHTML=view==='cal'?cal():view==='meals'?meals():view==='msg'?msgView():chores();
- if(view==='msg')wireMsg();
+ $('board').innerHTML=view==='cal'?cal():view==='meals'?meals():view==='msg'?msgView():view==='music'?musicView():chores();
+ if(view==='msg')wireMsg();if(view==='music')wireMusic();
  document.querySelectorAll('.tab[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
 }
 
@@ -514,6 +588,7 @@ $('board').addEventListener('change',e=>{
 });
 $('board').addEventListener('submit',e=>{if(e.target.id!=='cf')return;e.preventDefault();
  S.chores.push({id:uid(),text:$('ct').value.trim(),who:$('cw').value,done:false});save();render()});
+$('ytstop').onclick=()=>{try{yt.stopVideo()}catch(e){}$('ytdock').hidden=true;curList=null;ytTitle='';if(view==='music')render()};
 $('fs').onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}};
 
 /* photos: kept on this device */
@@ -521,11 +596,11 @@ let photos=[],pi=0;
 try{photos=JSON.parse(localStorage.getItem('smith-photos'))||[]}catch(e){}
 const SCENE='<svg viewBox="0 0 200 140" aria-hidden="true"><rect x="10" y="10" width="180" height="120" rx="14" fill="currentColor" opacity=".12"/><circle cx="148" cy="42" r="14" fill="#f2a516" opacity=".8"/><path d="M10 118 70 60l40 40 22-20 58 50v6a14 14 0 0 1-14 14H24a14 14 0 0 1-14-14z" fill="#2f9a6c" opacity=".7"/><path d="M10 124 52 92l36 38H24a14 14 0 0 1-14-6z" fill="#1f6f54" opacity=".8"/></svg>';
 function drawPhotos(){
- const p=$('photo');
+ const p=$('pin');
  if(!photos.length){p.innerHTML='<div class="ph"><div>'+SCENE+'<b style="color:var(--ink);font-size:18px">Family photos</b><br>Add pictures from this device and they’ll rotate here.<br><br><button class="btn pri" id="padd">Add photos</button></div></div>';return}
  p.innerHTML=photos.map((s,i)=>'<img alt="" src="'+(s.startsWith('data:image/')?s:'')+'"'+(i===pi?' class="show"':'')+'>').join('')+'<div class="pbtns"><button class="btn" id="padd">Add</button><button class="btn" id="pclr">Clear</button></div>';
 }
-function nextPhoto(){if(photos.length<2)return;const im=$('photo').querySelectorAll('img');im[pi]?.classList.remove('show');pi=(pi+1)%photos.length;im[pi]?.classList.add('show')}
+function nextPhoto(){if(photos.length<2)return;const im=$('pin').querySelectorAll('img');im[pi]?.classList.remove('show');pi=(pi+1)%photos.length;im[pi]?.classList.add('show')}
 $('photo').addEventListener('click',e=>{if(e.target.id==='padd')$('pick').click();if(e.target.id==='pclr'){photos=[];pi=0;try{localStorage.removeItem('smith-photos')}catch(x){}drawPhotos()}});
 $('pick').onchange=async e=>{
  for(const f of e.target.files){
