@@ -70,6 +70,12 @@ h1,h2,h3,.clock,.dnum{font-family:Fredoka,system-ui,sans-serif;font-weight:600;m
 .ev h3{font-size:clamp(16px,1.3vw,22px);line-height:1.15;font-weight:600}
 .ev .t{font-size:clamp(12px,.9vw,15px);opacity:.92;font-weight:600;white-space:nowrap}
 .ev .who{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.av{display:inline-grid;place-items:center;flex:none;width:var(--s,32px);height:var(--s,32px);border-radius:50%;overflow:hidden;background:var(--c);color:#fff;font:600 calc(var(--s,32px)*.45)/1 Fredoka,sans-serif;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.pill{display:flex;align-items:center;justify-content:center;gap:10px}.pill .av{--s:clamp(28px,2.2vw,40px)}
+.faces{display:flex;flex-wrap:wrap;margin:0 0 6px}.faces .av{--s:clamp(30px,2.1vw,40px);margin-right:-8px}
+.ev.has-faces{padding-top:10px}
+.mrow .av{--s:44px;cursor:pointer;border-color:var(--line)}
 .ev .who i{font-style:normal;font-size:12px;font-weight:800;background:rgba(255,255,255,.25);border-radius:99px;padding:2px 8px}
 .ev.past{opacity:.45;filter:saturate(.3)}
 .ev.past h3{text-decoration:line-through}
@@ -118,7 +124,7 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{min-height:44px;padding:0 14px;border-radius:99px;border:2px solid var(--c);color:color-mix(in srgb,var(--c) 75%,var(--ink));font-weight:800}
 .chip.on{background:var(--c);color:#fff}
-.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 56px 44px;gap:8px;margin-bottom:8px}
+.mrow{display:grid;grid-template-columns:44px minmax(0,1fr) minmax(0,1fr) 56px 44px;align-items:center;gap:8px;margin-bottom:8px}
 .jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:22px}
 .job{border-radius:18px;padding:14px 16px;background:color-mix(in srgb,var(--c,#7d8580) 16%,var(--panel));border:2px solid color-mix(in srgb,var(--c,#7d8580) 45%,transparent)}
 .job h3{font-size:22px;margin-bottom:2px}.job p{margin:0 0 10px;color:var(--mute);font-size:14px}
@@ -137,7 +143,7 @@ input[type=text],input[type=tel],input[type=date],input[type=time],select,textar
  .days{grid-template-columns:1fr}.day{border-right:0;border-bottom:1px solid var(--line)}
  .bar{flex-wrap:wrap}.ticker{flex-basis:100%;order:5}
  .nav{grid-template-columns:repeat(3,minmax(0,1fr))}.fs{display:none}
- .pill{min-width:92px}
+ .pill{flex:0 0 auto;min-width:0;padding:0 14px 0 6px;font-size:18px}.pill .av{--s:32px}
 }
 </style>
 </head>
@@ -271,8 +277,10 @@ async function weather(){
  }
 }
 /* people */
+const okPic=u=>typeof u==='string'&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(u);
+const av=m=>'<span class="av" style="--c:'+esc(m.color)+'" title="'+esc(m.name)+'">'+(okPic(m.photo)?'<img alt="" src="'+m.photo+'">':esc((m.name||'?')[0].toUpperCase()))+'</span>';
 function people(){
- $('people').innerHTML=S.members.map(m=>'<button class="pill'+(filter===m.id?' on':filter?' dim':'')+'" style="--c:'+esc(m.color)+'" data-m="'+esc(m.id)+'">'+esc(m.name)+'</button>').join('')+
+ $('people').innerHTML=S.members.map(m=>'<button class="pill'+(filter===m.id?' on':filter?' dim':'')+'" style="--c:'+esc(m.color)+'" data-m="'+esc(m.id)+'">'+av(m)+'<span>'+esc(m.name)+'</span></button>').join('')+
  '<button class="pill gear" id="gear" aria-label="Edit family members">⚙︎</button>';
 }
 /* calendar */
@@ -294,7 +302,7 @@ function cal(){
    else if(k===today&&!e.overnight&&s!=null&&s<=nowM&&en!=null&&en>nowM){const l=en-nowM;badge='<span class="badge">Ends in '+(l>=60?Math.floor(l/60)+'h '+(l%60)+'m':l+' min')+'</span>'}
    else if(k===today&&s!=null&&s>nowM&&s-nowM<=60)badge='<span class="badge">Starts in '+(s-nowM)+' min</span>';
    const t=e.start?fmtT(e.start)+(e.end?' – '+fmtT(e.end)+(e.overnight?' next day':''):''):'All day';
-   h+='<button class="'+cls+'" style="--c:'+esc(c)+';--c2:'+esc(c2)+'" data-ev="'+esc(e.id)+'" data-k="'+k+'">'+badge+'<h3>'+esc(e.title)+'</h3><div class="t">'+t+'</div>'+(ms.length>1?'<div class="who">'+ms.map(m=>'<i>'+esc(m.name)+'</i>').join('')+'</div>':'')+'</button>';
+   h+='<button class="'+cls+(ms.length?' has-faces':'')+'" style="--c:'+esc(c)+';--c2:'+esc(c2)+'" data-ev="'+esc(e.id)+'" data-k="'+k+'" aria-label="'+esc(e.title+(ms.length?', with '+ms.map(m=>m.name).join(', '):''))+'">'+badge+(ms.length?'<div class="faces">'+ms.map(av).join('')+'</div>':'')+'<h3>'+esc(e.title)+'</h3><div class="t">'+t+'</div></button>';
   }
   h+='</div></div>';
  }
@@ -369,12 +377,15 @@ function tickerForm(){
 }
 function membersForm(){
  let ms=S.members.map(m=>({...m}));
- const draw=()=>{$('ml').innerHTML=ms.map((m,i)=>'<div class="mrow"><input type="text" data-i="'+i+'" value="'+esc(m.name)+'" aria-label="Name" placeholder="Name"><input type="tel" data-p="'+i+'" value="'+esc(m.phone||'')+'" aria-label="Mobile number for reminders" placeholder="Mobile (for texts)"><input type="color" data-c="'+i+'" value="'+esc(m.color)+'" aria-label="Colour"><button type="button" class="btn" data-r="'+i+'" aria-label="Remove">✕</button></div>').join('')};
- open('<h2>Family</h2><p style="color:var(--mute);margin-top:-6px">Mobile numbers are used for chore reminder texts.</p><div id="ml"></div><button type="button" class="btn" id="madd">+ Add person</button><div class="acts"><button type="button" class="btn" id="mcan">Cancel</button><button type="button" class="btn pri" id="msave">Save</button></div>');
+ const draw=()=>{$('ml').innerHTML=ms.map((m,i)=>'<div class="mrow"><button type="button" class="av" style="--c:'+esc(m.color)+'" data-ph="'+i+'" aria-label="Choose photo for '+esc(m.name||'person')+'">'+(okPic(m.photo)?'<img alt="" src="'+m.photo+'">':'+')+'</button><input type="text" data-i="'+i+'" value="'+esc(m.name)+'" aria-label="Name" placeholder="Name"><input type="tel" data-p="'+i+'" value="'+esc(m.phone||'')+'" aria-label="Mobile number for reminders" placeholder="Mobile (for texts)"><input type="color" data-c="'+i+'" value="'+esc(m.color)+'" aria-label="Colour"><button type="button" class="btn" data-r="'+i+'" aria-label="Remove">✕</button></div>').join('')};
+ open('<h2>Family</h2><p style="color:var(--mute);margin-top:-6px">Tap a circle to add a photo. Mobile numbers are used for chore reminder texts.</p><input type="file" id="mpic" accept="image/*" hidden><div id="ml"></div><button type="button" class="btn" id="madd">+ Add person</button><div class="acts"><button type="button" class="btn" id="mcan">Cancel</button><button type="button" class="btn pri" id="msave">Save</button></div>');
  draw();
  const pal=['#d6455d','#8a4fd8','#e0782b','#1f9bb5','#c9a227','#3c8d3f','#e05fa6'];
  $('ml').oninput=e=>{const t=e.target;if(t.dataset.i)ms[t.dataset.i].name=t.value;if(t.dataset.p)ms[t.dataset.p].phone=t.value.trim();if(t.dataset.c)ms[t.dataset.c].color=t.value};
- $('ml').onclick=e=>{const b=e.target.closest('[data-r]');if(b){ms.splice(+b.dataset.r,1);draw()}};
+ let phI=-1;
+ $('ml').onclick=e=>{const p=e.target.closest('[data-ph]');if(p){phI=+p.dataset.ph;$('mpic').click();return}const b=e.target.closest('[data-r]');if(b){ms.splice(+b.dataset.r,1);draw()}};
+ $('mpic').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||phI<0)return;const url=URL.createObjectURL(f),img=new Image();await new Promise(r=>{img.onload=r;img.onerror=r;img.src=url});URL.revokeObjectURL(url);if(!img.width)return;
+  const z=Math.min(img.width,img.height),c=document.createElement('canvas');c.width=c.height=160;c.getContext('2d').drawImage(img,(img.width-z)/2,(img.height-z)/2.6,z,z,0,0,160,160);ms[phI].photo=c.toDataURL('image/jpeg',.8);draw()};
  $('madd').onclick=()=>{ms.push({id:uid(),name:'',color:pal[ms.length%pal.length]});draw();const ins=$('ml').querySelectorAll('input[type=text]');ins[ins.length-1].focus()};
  $('mcan').onclick=close;
  $('msave').onclick=()=>{S.members=ms.filter(m=>m.name.trim()).map(m=>({...m,name:m.name.trim()}));const ids=S.members.map(m=>m.id);
